@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solar System Quiz</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #060b1a;
+      color: #e8eaf6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Starfield */
+    #stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .star {
+      position: absolute;
+      background: #fff;
+      border-radius: 50%;
+      animation: twinkle var(--dur, 3s) ease-in-out infinite;
+      opacity: 0;
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: 0; }
+      50%       { opacity: var(--max-op, 0.8); }
+    }
+
+    /* Card */
+    #app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 680px;
+    }
+
+    .card {
+      background: rgba(13, 22, 48, 0.88);
+      border: 1px solid rgba(100, 140, 255, 0.25);
+      border-radius: 18px;
+      padding: 2.4rem 2.8rem;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 60px rgba(50, 80, 200, 0.18);
+    }
+
+    /* Screen transitions */
+    .screen { display: none; animation: fadeIn 0.4s ease; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+    /* Header */
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      background: linear-gradient(135deg, #a8c8ff, #c084fc, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.4rem;
+    }
+    .subtitle {
+      text-align: center;
+      color: #8ba0cc;
+      font-size: 0.95rem;
+      margin-bottom: 1.8rem;
+    }
+
+    /* Instructions */
+    .instructions {
+      background: rgba(30, 50, 100, 0.5);
+      border-left: 3px solid #6490ff;
+      border-radius: 0 10px 10px 0;
+      padding: 1rem 1.2rem;
+      font-size: 0.92rem;
+      line-height: 1.7;
+      color: #b8c8ef;
+      margin-bottom: 2rem;
+    }
+    .instructions ul { padding-left: 1.2rem; }
+    .instructions li { margin-bottom: 0.25rem; }
+
+    /* Buttons */
+    .btn {
+      display: inline-block;
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 0.75rem 2rem;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    }
+    .btn:hover  { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(100, 144, 255, 0.35); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4f7cff, #7c3aed);
+      color: #fff;
+      width: 100%;
+      margin-top: 0.4rem;
+    }
+    .btn-ghost {
+      background: rgba(80, 110, 200, 0.2);
+      color: #a8c0ff;
+      border: 1px solid rgba(100, 140, 255, 0.3);
+      width: 100%;
+      margin-top: 0.75rem;
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin-bottom: 1.6rem;
+    }
+    .progress-bar {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4f7cff, #c084fc);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+    .progress-label { font-size: 0.8rem; color: #6a84b8; white-space: nowrap; }
+
+    /* Question */
+    .question-text {
+      font-size: 1.18rem;
+      font-weight: 600;
+      line-height: 1.55;
+      color: #ddeaff;
+      margin-bottom: 1.5rem;
+      min-height: 3.5rem;
+    }
+    .question-meta {
+      font-size: 0.75rem;
+      color: #4a6499;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Answer buttons */
+    .answers { display: grid; gap: 0.7rem; }
+    .answer-btn {
+      background: rgba(30, 50, 100, 0.45);
+      border: 1px solid rgba(100, 140, 255, 0.2);
+      border-radius: 10px;
+      color: #c8d8f8;
+      padding: 0.8rem 1.1rem;
+      font-size: 0.97rem;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.18s, border-color 0.18s, transform 0.12s;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .answer-btn:hover:not(:disabled) {
+      background: rgba(60, 90, 180, 0.5);
+      border-color: rgba(130, 170, 255, 0.5);
+      transform: translateX(3px);
+    }
+    .answer-btn .letter {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(80, 110, 200, 0.35);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #8aaeff;
+    }
+    .answer-btn.correct {
+      background: rgba(20, 120, 70, 0.5);
+      border-color: #34d399;
+      color: #a7f3d0;
+    }
+    .answer-btn.correct .letter { background: rgba(52, 211, 153, 0.3); color: #34d399; }
+    .answer-btn.wrong {
+      background: rgba(140, 30, 40, 0.45);
+      border-color: #f87171;
+      color: #fca5a5;
+    }
+    .answer-btn.wrong .letter { background: rgba(248, 113, 113, 0.25); color: #f87171; }
+    .answer-btn:disabled { cursor: default; transform: none; }
+
+    /* Feedback */
+    #feedback {
+      min-height: 2.2rem;
+      margin-top: 1.1rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-align: center;
+      transition: opacity 0.3s;
+    }
+    #feedback.correct { color: #34d399; }
+    #feedback.wrong   { color: #f87171; }
+
+    #fact {
+      margin-top: 0.4rem;
+      font-size: 0.85rem;
+      color: #7a98cc;
+      text-align: center;
+      font-style: italic;
+      min-height: 1.2rem;
+    }
+
+    /* Score */
+    .score-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      color: #5a78b0;
+      margin-top: 1.2rem;
+      border-top: 1px solid rgba(100, 140, 255, 0.1);
+      padding-top: 0.9rem;
+    }
+    .score-row span { color: #a8c0ff; font-weight: 600; }
+
+    /* Results */
+    .result-planet {
+      font-size: 5rem;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      animation: orbit 6s linear infinite;
+    }
+    @keyframes orbit { from { transform: rotate(0deg) translateX(4px) rotate(0deg); } to { transform: rotate(360deg) translateX(4px) rotate(-360deg); } }
+
+    .result-score-big {
+      text-align: center;
+      font-size: 3.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a8c8ff, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+    .result-out-of {
+      text-align: center;
+      color: #5a78b0;
+      font-size: 0.9rem;
+      margin-bottom: 1.2rem;
+    }
+    .result-rank {
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      color: #c8d8f8;
+    }
+    .result-msg {
+      text-align: center;
+      font-size: 0.9rem;
+      color: #7a98cc;
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    .review-list { display: grid; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .review-item {
+      background: rgba(20, 35, 75, 0.5);
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.82rem;
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-start;
+      border-left: 3px solid transparent;
+    }
+    .review-item.ok   { border-color: #34d399; }
+    .review-item.miss { border-color: #f87171; }
+    .review-item .icon { font-size: 0.9rem; }
+    .review-item .q   { color: #8aa0cc; }
+    .review-item .a   { color: #c8d8f8; margin-top: 0.15rem; }
+  </style>
+</head>
+<body>
+
+<div id="stars"></div>
+
+<div id="app">
+
+  <!-- INTRO SCREEN -->
+  <div id="screen-intro" class="card screen active">
+    <h1>Solar System Quiz</h1>
+    <p class="subtitle">Test your knowledge of our cosmic neighbourhood</p>
+    <div class="instructions">
+      <ul>
+        <li>15 multiple-choice questions about planets, moons, and space facts.</li>
+        <li>Pick the best answer — no time pressure, take your time.</li>
+        <li>See your score, rank, and a review of every question at the end.</li>
+      </ul>
+    </div>
+    <button class="btn btn-primary" onclick="startQuiz()">Launch Quiz &rarr;</button>
+  </div>
+
+  <!-- QUIZ SCREEN -->
+  <div id="screen-quiz" class="card screen">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="progress-label">1 / 15</div>
+    </div>
+    <div class="question-meta" id="question-meta">Question 1</div>
+    <div class="question-text" id="question-text"></div>
+    <div class="answers" id="answers"></div>
+    <div id="feedback"></div>
+    <div id="fact"></div>
+    <div class="score-row">
+      Score: <span id="score-live">0</span>&nbsp;/ <span id="score-total-live">0</span>
+      &nbsp;&nbsp;|&nbsp;&nbsp;
+      Remaining: <span id="remaining">15</span>
+    </div>
+    <button class="btn btn-ghost" id="next-btn" style="display:none" onclick="nextQuestion()">Next Question &rarr;</button>
+  </div>
+
+  <!-- RESULTS SCREEN -->
+  <div id="screen-results" class="card screen">
+    <div class="result-planet" id="result-planet">🪐</div>
+    <div class="result-score-big" id="result-score-big">0</div>
+    <div class="result-out-of" id="result-out-of">out of 15</div>
+    <div class="result-rank" id="result-rank"></div>
+    <div class="result-msg"  id="result-msg"></div>
+    <details style="margin-bottom:1.5rem">
+      <summary style="cursor:pointer;color:#6a84b8;font-size:0.88rem;user-select:none">Show answer review</summary>
+      <div class="review-list" id="review-list" style="margin-top:0.9rem"></div>
+    </details>
+    <button class="btn btn-primary" onclick="restartQuiz()">Play Again</button>
+    <button class="btn btn-ghost"   onclick="showIntro()">Back to Start</button>
+  </div>
+
+</div>
+
+<script>
+// ─── Questions ────────────────────────────────────────────────────────────────
+const ALL_QUESTIONS = [
+  {
+    q: "Which planet is the largest in our solar system?",
+    options: ["Saturn","Jupiter","Uranus","Neptune"],
+    answer: 1,
+    fact: "Jupiter is so massive it could fit all other planets inside it — twice!"
+  },
+  {
+    q: "How many moons does Mars have?",
+    options: ["0","1","2","4"],
+    answer: 2,
+    fact: "Mars has two small moons: Phobos and Deimos, likely captured asteroids."
+  },
+  {
+    q: "What is the closest planet to the Sun?",
+    options: ["Venus","Earth","Mercury","Mars"],
+    answer: 2,
+    fact: "Mercury completes one orbit around the Sun in just 88 Earth days."
+  },
+  {
+    q: "Which planet rotates on its side, with an axial tilt of about 98°?",
+    options: ["Neptune","Saturn","Venus","Uranus"],
+    answer: 3,
+    fact: "Uranus's extreme tilt may be the result of a giant ancient collision."
+  },
+  {
+    q: "What is the name of the largest moon of Saturn?",
+    options: ["Titan","Europa","Ganymede","Callisto"],
+    answer: 0,
+    fact: "Titan has a thick nitrogen atmosphere and lakes of liquid methane."
+  },
+  {
+    q: "Which is the hottest planet in the solar system?",
+    options: ["Mercury","Mars","Venus","Jupiter"],
+    answer: 2,
+    fact: "Venus's thick CO₂ atmosphere traps heat, pushing surface temps to ~465 °C."
+  },
+  {
+    q: "Approximately how long does light from the Sun take to reach Earth?",
+    options: ["About 8 minutes","About 30 seconds","About 1 hour","About 2 days"],
+    answer: 0,
+    fact: "Light travels ~150 million km at 299,792 km/s — taking roughly 8 min 20 sec."
+  },
+  {
+    q: "What is the Great Red Spot on Jupiter?",
+    options: [
+      "A volcano larger than Earth",
+      "A persistent high-pressure storm",
+      "An impact crater",
+      "A region of exposed iron ore"
+    ],
+    answer: 1,
+    fact: "The Great Red Spot has been raging for at least 350 years and is shrinking slowly."
+  },
+  {
+    q: "Which planet has the most extensive ring system?",
+    options: ["Jupiter","Uranus","Neptune","Saturn"],
+    answer: 3,
+    fact: "Saturn's rings are made mostly of ice particles and are up to 282,000 km wide."
+  },
+  {
+    q: "What is the smallest planet in the solar system?",
+    options: ["Mars","Pluto","Mercury","Venus"],
+    answer: 2,
+    fact: "Mercury has a diameter of ~4,880 km — smaller than some moons, including Ganymede."
+  },
+  {
+    q: "Europa, one of Jupiter's moons, is thought to have what beneath its icy surface?",
+    options: ["A solid iron core","A liquid water ocean","Dense volcanic rock","Liquid nitrogen lakes"],
+    answer: 1,
+    fact: "Europa's subsurface ocean makes it one of the top candidates for extraterrestrial life."
+  },
+  {
+    q: "Which planet has a day longer than its year?",
+    options: ["Mars","Venus","Uranus","Neptune"],
+    answer: 1,
+    fact: "Venus rotates so slowly that one Venusian day is ~243 Earth days, longer than its 225-day year."
+  },
+  {
+    q: "The Asteroid Belt lies between which two planets?",
+    options: ["Earth and Mars","Mars and Jupiter","Jupiter and Saturn","Saturn and Uranus"],
+    answer: 1,
+    fact: "Despite holding millions of asteroids, the total mass of the Asteroid Belt is less than Earth's Moon."
+  },
+  {
+    q: "What is the name of Neptune's largest moon?",
+    options: ["Triton","Oberon","Charon","Nereid"],
+    answer: 0,
+    fact: "Triton orbits Neptune backwards and is thought to be a captured Kuiper Belt object."
+  },
+  {
+    q: "Which planet has the strongest surface gravity in the solar system (excluding the Sun)?",
+    options: ["Saturn","Jupiter","Neptune","Uranus"],
+    answer: 1,
+    fact: "On Jupiter's cloud tops, gravity is about 2.4× that of Earth — you'd weigh 240% as much."
+  },
+];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let questions = [];
+let current   = 0;
+let score     = 0;
+let answered  = false;
+let results   = []; // {correct, chosenLabel, correctLabel, question}
+
+// ─── Stars ────────────────────────────────────────────────────────────────────
+(function buildStars() {
+  const container = document.getElementById('stars');
+  for (let i = 0; i < 160; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2.2 + 0.5;
+    s.style.cssText = `
+      width:${size}px; height:${size}px;
+      top:${Math.random()*100}%;
+      left:${Math.random()*100}%;
+      --dur:${(Math.random()*4+2).toFixed(1)}s;
+      --max-op:${(Math.random()*0.6+0.2).toFixed(2)};
+      animation-delay:${(Math.random()*5).toFixed(1)}s;
+    `;
+    container.appendChild(s);
+  }
+})();
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ─── Quiz flow ────────────────────────────────────────────────────────────────
+function startQuiz() {
+  questions = shuffle(ALL_QUESTIONS);
+  current   = 0;
+  score     = 0;
+  answered  = false;
+  results   = [];
+  show('screen-quiz');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const total = questions.length;
+  const q     = questions[current];
+  answered    = false;
+
+  // Progress
+  const pct = (current / total) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `${current + 1} / ${total}`;
+  document.getElementById('question-meta').textContent  = `Question ${current + 1}`;
+  document.getElementById('score-live').textContent     = score;
+  document.getElementById('score-total-live').textContent = current;
+  document.getElementById('remaining').textContent      = total - current;
+  document.getElementById('feedback').textContent       = '';
+  document.getElementById('feedback').className         = '';
+  document.getElementById('fact').textContent           = '';
+  document.getElementById('next-btn').style.display     = 'none';
+
+  document.getElementById('question-text').textContent  = q.q;
+
+  // Build shuffled options (track original index for correct answer)
+  const letters = ['A','B','C','D'];
+  const opts    = q.options.map((text, idx) => ({ text, idx }));
+  const shuffled = shuffle(opts);
+
+  const container = document.getElementById('answers');
+  container.innerHTML = '';
+  shuffled.forEach((opt, pos) => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.innerHTML = `<span class="letter">${letters[pos]}</span> ${opt.text}`;
+    btn.addEventListener('click', () => selectAnswer(opt.idx, q.answer, opt.text, q.options[q.answer], q.fact, shuffled));
+    container.appendChild(btn);
+  });
+}
+
+function selectAnswer(chosenIdx, correctIdx, chosenLabel, correctLabel, fact, shuffled) {
+  if (answered) return;
+  answered = true;
+
+  const buttons = document.querySelectorAll('.answer-btn');
+  const isRight = chosenIdx === correctIdx;
+
+  // Disable all, highlight
+  buttons.forEach((btn, pos) => {
+    btn.disabled = true;
+    if (shuffled[pos].idx === correctIdx) btn.classList.add('correct');
+    else if (shuffled[pos].idx === chosenIdx) btn.classList.add('wrong');
+  });
+
+  const feedback = document.getElementById('feedback');
+  if (isRight) {
+    score++;
+    feedback.textContent = '✓ Correct!';
+    feedback.className   = 'correct';
+  } else {
+    feedback.textContent = `✗ Incorrect — the answer was "${correctLabel}"`;
+    feedback.className   = 'wrong';
+  }
+
+  document.getElementById('fact').textContent = fact;
+  document.getElementById('score-live').textContent = score;
+  document.getElementById('score-total-live').textContent = current + 1;
+  document.getElementById('next-btn').style.display = 'block';
+
+  results.push({ correct: isRight, chosenLabel, correctLabel, question: questions[current].q });
+}
+
+function nextQuestion() {
+  current++;
+  if (current >= questions.length) {
+    showResults();
+  } else {
+    renderQuestion();
+  }
+}
+
+// ─── Results ──────────────────────────────────────────────────────────────────
+const RANKS = [
+  { min: 15, planet: '🌟', rank: 'Galactic Genius',      msg: 'Perfect score! You know the solar system better than most astronomers.' },
+  { min: 12, planet: '🪐', rank: 'Star Navigator',       msg: 'Outstanding! Your knowledge of the cosmos is truly impressive.' },
+  { min: 9,  planet: '🌍', rank: 'Space Explorer',       msg: 'Great job! A solid understanding of our solar neighbourhood.' },
+  { min: 6,  planet: '🌙', rank: 'Lunar Apprentice',     msg: 'Not bad! A bit more study and you\'ll be orbiting the top scores.' },
+  { min: 0,  planet: '☄️', rank: 'Rookie Stargazer',     msg: 'Every expert starts somewhere. Review the facts and try again!' },
+];
+
+function showResults() {
+  const total = questions.length;
+  const rank  = RANKS.find(r => score >= r.min);
+
+  document.getElementById('result-planet').textContent    = rank.planet;
+  document.getElementById('result-score-big').textContent = score;
+  document.getElementById('result-out-of').textContent    = `out of ${total}`;
+  document.getElementById('result-rank').textContent      = rank.rank;
+  document.getElementById('result-msg').textContent       = rank.msg;
+
+  // Review list
+  const list = document.getElementById('review-list');
+  list.innerHTML = '';
+  results.forEach(r => {
+    const item = document.createElement('div');
+    item.className = `review-item ${r.correct ? 'ok' : 'miss'}`;
+    item.innerHTML = `
+      <span class="icon">${r.correct ? '✓' : '✗'}</span>
+      <div>
+        <div class="q">${r.question}</div>
+        <div class="a">${r.correct ? 'Your answer: ' + r.correctLabel : 'Correct: ' + r.correctLabel + (r.chosenLabel !== r.correctLabel ? ' &nbsp;(you chose: ' + r.chosenLabel + ')' : '')}</div>
+      </div>`;
+    list.appendChild(item);
+  });
+
+  // Progress bar full
+  document.getElementById('progress-fill').style.width = '100%';
+  show('screen-results');
+}
+
+function restartQuiz() { startQuiz(); }
+function showIntro()   { show('screen-intro'); }
+</script>
+</body>
+</html>
